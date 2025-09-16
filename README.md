@@ -1,36 +1,40 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+Wallet Cleaner — Next.js приложение для очистки кошельков от скам-токенов и NFT в EVM сетях.
 
-## Getting Started
+## Запуск
 
-First, run the development server:
+1. Скопируйте переменные окружения:
+
+```
+cp ENV_LOCAL_EXAMPLE.txt .env.local
+```
+
+2. Запустите dev-сервер:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Откройте http://localhost:3000 и переходите на `/en` или `/ru`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Основной UI находится в `src/app/[locale]/page.tsx`.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-## Learn More
+## Стек
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+— Next.js 15 (App Router, Turbopack)
+— Tailwind v4 (preflight)
+— next-intl (i18n EN/RU)
+— wagmi + RainbowKit
+— TanStack Query
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-## Deploy on Vercel
+## TODO
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+— Интегрировать реальный провайдер ассетов (DeBank/Alchemy)
+— Реализовать безопасные транзакции очистки (ERC20/ERC721)
+— Добавить SEO JSON-LD и FAQ для AEO
+— Улучшить детекцию скама (фильтры по токен-скорам)
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.

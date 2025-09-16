@@ -1,0 +1,28 @@
+{
+  "app": {
+    "title": "Wallet Cleaner — remove scam tokens & NFTs",
+    "description": "Connect your wallet and quickly get rid of spam/scam ERC-20 tokens and NFTs across EVM chains.",
+    "connect": "Connect Wallet",
+    "disconnect": "Disconnect",
+    "cleanCta": "Clean my wallet",
+    "assets": "Your assets",
+    "tokens": "Tokens",
+    "nfts": "NFTs",
+    "empty": "No assets to display.",
+    "reviewTitle": "Review assets to remove",
+    "reviewSubtitle": "Uncheck assets you want to keep. You confirm that you understand and accept all risks.",
+    "selectAll": "Select all",
+    "deselectAll": "Deselect all",
+    "tip": "Optional tip to the service",
+    "tipPlaceholder": "0.0",
+    "confirm": "Send",
+    "cancel": "Cancel",
+    "disclaimer": "By proceeding you take full responsibility for the transactions. This action is irreversible.",
+    "language": "Language",
+    "copied": "Copied",
+    "processing": "Processing...",
+    "done": "Done",
+    "error": "Error",
+    "search": "Search assets..."
+  }
+}
