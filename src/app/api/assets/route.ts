@@ -1,5 +1,7 @@
 import { NextRequest } from "next/server";
 import { getAlchemy, SUPPORTED_NETWORKS } from "@/server/alchemy";
+import { createPublicClient, http } from "viem";
+import { erc20Abi as viemErc20Abi } from "viem";
 
 type AssetResponse = {
   id: string;
@@ -10,6 +12,7 @@ type AssetResponse = {
   name: string;
   decimals: number;
   balance: string; // human-readable
+  raw: string; // raw balance in wei (decimal string)
   usdPrice: number | null;
   usdValue: number | null;
   isScam: boolean;
@@ -101,7 +104,7 @@ export async function GET(req: NextRequest) {
         },
         body: JSON.stringify(body),
         // Alchemy may cache; but balances should be fresh
-        next: { revalidate: 10 },
+        next: { revalidate: 60 },
       });
       if (!res.ok) break;
       const data: {
@@ -130,6 +133,93 @@ export async function GET(req: NextRequest) {
     // limit to 8 decimals for UI brevity
     const trimmed = fractionStr.slice(0, 8);
     return `${whole.toString()}.${trimmed}`;
+  }
+
+  function getRpcUrl(networkKey: string): string | null {
+    const host = getAlchemyRpcHost(networkKey);
+    const apiKey =
+      process.env.ALCHEMY_API_KEY ?? process.env.NEXT_PUBLIC_ALCHEMY_API_KEY;
+    if (!host || !apiKey) return null;
+    return `https://${host}.g.alchemy.com/v2/${apiKey}`;
+  }
+
+  async function fetchErc20MetaOnchain(
+    networkKey: string,
+    address: `0x${string}`
+  ): Promise<{ symbol?: string; name?: string; decimals?: number } | null> {
+    try {
+      const url = getRpcUrl(networkKey);
+      if (!url) return null;
+      const client = createPublicClient({ transport: http(url) });
+      const [symbol, name, decimals] = await Promise.all([
+        client
+          .readContract({ address, abi: viemErc20Abi, functionName: "symbol" })
+          .catch(async () => {
+            // bytes32 fallback
+            const abi = [
+              {
+                name: "symbol",
+                type: "function",
+                stateMutability: "view",
+                inputs: [],
+                outputs: [{ type: "bytes32" }],
+              },
+            ] as const;
+            const val = (await client
+              .readContract({ address, abi, functionName: "symbol" })
+              .catch(() => undefined)) as `0x${string}` | undefined;
+            return val ? bytes32ToString(val) : undefined;
+          }),
+        client
+          .readContract({ address, abi: viemErc20Abi, functionName: "name" })
+          .catch(async () => {
+            // bytes32 fallback
+            const abi = [
+              {
+                name: "name",
+                type: "function",
+                stateMutability: "view",
+                inputs: [],
+                outputs: [{ type: "bytes32" }],
+              },
+            ] as const;
+            const val = (await client
+              .readContract({ address, abi, functionName: "name" })
+              .catch(() => undefined)) as `0x${string}` | undefined;
+            return val ? bytes32ToString(val) : undefined;
+          }),
+        client
+          .readContract({
+            address,
+            abi: viemErc20Abi,
+            functionName: "decimals",
+          })
+          .catch(() => undefined),
+      ]);
+      return {
+        symbol: (symbol as string | undefined) ?? undefined,
+        name: (name as string | undefined) ?? undefined,
+        decimals: (decimals as number | undefined) ?? undefined,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  function bytes32ToString(hex: `0x${string}`): string {
+    try {
+      const clean = hex.slice(2);
+      const bytes: number[] = [];
+      for (let i = 0; i < clean.length; i += 2) {
+        const byte = parseInt(clean.slice(i, i + 2), 16);
+        if (byte === 0) break;
+        bytes.push(byte);
+      }
+      const decoder = new TextDecoder();
+      return decoder.decode(new Uint8Array(bytes));
+    } catch {
+      return "";
+    }
   }
 
   await Promise.all(
@@ -168,7 +258,7 @@ export async function GET(req: NextRequest) {
         >();
 
         // limit concurrency to avoid rate-limits
-        const chunkSize = 5;
+        const chunkSize = 3;
         for (let i = 0; i < nonZero.length; i += chunkSize) {
           const slice = nonZero.slice(i, i + chunkSize);
           await Promise.all(
@@ -183,6 +273,20 @@ export async function GET(req: NextRequest) {
                   decimals: meta.decimals ?? 18,
                 });
               } catch {}
+              // On-chain fallback if still missing
+              if (!metadataMap.get(b.contractAddress)) {
+                const onchain = await fetchErc20MetaOnchain(
+                  net.key,
+                  b.contractAddress as `0x${string}`
+                );
+                if (onchain) {
+                  metadataMap.set(b.contractAddress, {
+                    symbol: onchain.symbol ?? "",
+                    name: onchain.name ?? "",
+                    decimals: onchain.decimals ?? 18,
+                  });
+                }
+              }
             })
           );
         }
@@ -220,6 +324,7 @@ export async function GET(req: NextRequest) {
               name,
               decimals,
               balance: humanStr,
+              raw: raw.toString(),
               usdPrice: price ?? null,
               usdValue,
               isScam,

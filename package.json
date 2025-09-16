@@ -9,16 +9,19 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@radix-ui/react-tooltip": "^1.2.8",
     "@rainbow-me/rainbowkit": "^2.2.8",
     "@tanstack/react-query": "^5.87.1",
     "alchemy-sdk": "^3.6.3",
+    "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "jotai": "^2.13.1",
-    "lucide-react": "^0.542.0",
+    "lucide-react": "^0.544.0",
     "next": "15.5.2",
     "next-intl": "^4.3.6",
     "react": "19.1.0",
     "react-dom": "19.1.0",
+    "tailwind-merge": "^3.3.1",
     "viem": "^2.37.3",
     "wagmi": "^2.16.9",
     "zustand": "^5.0.8"
@@ -32,6 +35,7 @@
     "eslint": "^9",
     "eslint-config-next": "15.5.2",
     "tailwindcss": "^4",
+    "tw-animate-css": "^1.3.8",
     "typescript": "^5"
   }
 }

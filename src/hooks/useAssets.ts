@@ -24,12 +24,16 @@ export function useAssets() {
     queryFn: async (): Promise<UiAsset[]> => {
       if (!address) return [];
       const url = `/api/assets?address=${address}`;
-      const res = await fetch(url, { cache: "no-store" });
+      const res = await fetch(url, {
+        cache: "force-cache",
+        next: { revalidate: 60 },
+      });
       if (!res.ok) return [];
       const data = await res.json();
       return (data.assets ?? []) as UiAsset[];
     },
-    staleTime: 30_000,
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
   });
   return {
     assets: query.data ?? [],

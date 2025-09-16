@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { Header } from "./(components)/header";
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import { AssetList } from "@/components/wallet/asset-list";
 import { ReviewModal } from "@/components/wallet/review-modal";
 import { Footer } from "./(components)/footer";
