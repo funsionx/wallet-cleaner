@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { getAlchemy, SUPPORTED_NETWORKS } from "@/server/alchemy";
 import { createPublicClient, http } from "viem";
+import { isScamToken } from "@/shared/lib/scam";
 import { erc20Abi as viemErc20Abi } from "viem";
 
 type AssetResponse = {
@@ -13,6 +14,7 @@ type AssetResponse = {
   decimals: number;
   balance: string; // human-readable
   raw: string; // raw balance in wei (decimal string)
+  logo?: string | null;
   usdPrice: number | null;
   usdValue: number | null;
   isScam: boolean;
@@ -296,7 +298,12 @@ export async function GET(req: NextRequest) {
 
         const metadataMap = new Map<
           string,
-          { symbol: string; name: string; decimals: number }
+          {
+            symbol: string;
+            name: string;
+            decimals: number;
+            logo?: string | null;
+          }
         >();
 
         // limit concurrency to avoid rate-limits
@@ -313,10 +320,15 @@ export async function GET(req: NextRequest) {
                   symbol: string;
                   name: string;
                   decimals: number;
+                  logo?: string | null;
                 } = {
                   symbol: meta.symbol ?? "",
                   name: meta.name ?? "",
                   decimals: meta.decimals ?? 18,
+                  logo:
+                    (meta &&
+                      (meta as unknown as { logo?: string | null }).logo) ||
+                    null,
                 };
                 metadataMap.set(b.contractAddress, payload);
               } catch {}
@@ -331,7 +343,13 @@ export async function GET(req: NextRequest) {
                     symbol: onchain.symbol ?? "",
                     name: onchain.name ?? "",
                     decimals: onchain.decimals ?? 18,
-                  } as { symbol: string; name: string; decimals: number };
+                    logo: null,
+                  } as {
+                    symbol: string;
+                    name: string;
+                    decimals: number;
+                    logo?: string | null;
+                  };
                   metadataMap.set(b.contractAddress, payload);
                 }
               }
@@ -403,9 +421,14 @@ export async function GET(req: NextRequest) {
             const name = meta.name || symbol || b.contractAddress;
             const isEthNative = symbol === "ETH";
             const isScam =
-              typeof usdValue === "number"
-                ? !isEthNative && usdValue < 0.1
-                : !isEthNative && (!symbol || humanNum < 0.000001);
+              !isEthNative &&
+              isScamToken({
+                symbol,
+                name,
+                usdPrice: typeof price === "number" ? price : null,
+                usdValue,
+                balanceHuman: humanNum,
+              });
             results.push({
               id: `${b.contractAddress}-${net.chainId}`,
               chainId: net.chainId,
@@ -416,6 +439,9 @@ export async function GET(req: NextRequest) {
               decimals,
               balance: humanStr,
               raw: raw.toString(),
+              logo:
+                (metadataMap.get(b.contractAddress) || { logo: null }).logo ||
+                null,
               usdPrice: typeof price === "number" ? price : null,
               usdValue,
               isScam,

@@ -12,6 +12,7 @@ export type UiAsset = {
   name: string;
   decimals: number;
   balance: string;
+  logo?: string | null;
   usdPrice: number | null;
   usdValue: number | null;
   isScam: boolean;

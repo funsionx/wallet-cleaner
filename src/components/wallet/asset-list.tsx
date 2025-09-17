@@ -7,7 +7,7 @@ import {
   TooltipContent,
 } from "@/components/ui/tooltip";
 import { useAssets } from "@/hooks/useAssets";
-import { optimism } from "viem/chains";
+import Image from "next/image";
 
 export type MockAsset = {
   id: string;
@@ -16,7 +16,8 @@ export type MockAsset = {
   name: string;
   amount?: string;
   isScam?: boolean;
-  usdValue?: number;
+  usdValue?: number | null;
+  logo?: string | null;
 };
 
 const MOCK_ASSETS: MockAsset[] = [];
@@ -40,22 +41,32 @@ export function AssetList({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assets.length]);
 
-  const filtered = useMemo(() => {
+  type CardAsset = Required<
+    Pick<MockAsset, "id" | "type" | "symbol" | "name">
+  > & {
+    amount?: string;
+    usdValue?: number | null;
+    isScam?: boolean;
+    logo?: string | null;
+  };
+
+  const filtered: CardAsset[] = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const list =
+    const list: CardAsset[] =
       assets.length === 0
-        ? MOCK_ASSETS
+        ? (MOCK_ASSETS as CardAsset[])
         : assets
             .slice()
             .sort((a, b) => Number(b.isScam) - Number(a.isScam))
             .map((a) => ({
               id: a.id,
-              type: "erc20" as const,
+              type: "erc20",
               symbol: a.symbol,
               name: a.name,
               amount: a.balance,
               usdValue: a.usdValue,
               isScam: a.isScam,
+              logo: (a as unknown as { logo?: string | null }).logo ?? null,
             }));
     if (!q) return list;
     return list.filter((a) =>
@@ -70,9 +81,9 @@ export function AssetList({
         : [...selected, id]
     );
   };
-
+  console.log(assets);
   return (
-    <div className="rounded-xl flex flex-col border border-black/10 dark:border-white/10 p-3">
+    <div className="rounded-xl border border-black/10 dark:border-white/10 p-3">
       <div className="flex items-center gap-2 mb-3">
         <input
           value={query}
@@ -133,36 +144,48 @@ export function AssetList({
                 }`}
               >
                 <div className="flex items-start justify-between">
-                  <div className="flex flex-col min-w-0 flex-1">
-                    <span className="text-sm font-medium flex items-center gap-2 flex-wrap">
-                      <span className="truncate">
-                        {asset.symbol ? `${asset.symbol}` : asset.name}
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    {asset.logo ? (
+                      <Image
+                        src={asset.logo}
+                        alt={asset.symbol || asset.name}
+                        width={20}
+                        height={20}
+                        className="rounded"
+                      />
+                    ) : (
+                      <div className="w-5 h-5 rounded bg-black/10 dark:bg-white/10" />
+                    )}
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span className="text-sm font-medium flex items-center gap-2 flex-wrap">
+                        <span className="truncate">
+                          {asset.symbol ? `${asset.symbol}` : asset.name}
+                        </span>
+                        {asset.isScam && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="text-[10px] px-2 py-0.5 rounded bg-red-600/10 text-red-700 dark:text-red-300 border border-red-600/20 flex-shrink-0">
+                                SCAM
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              Suspicious/low-value token detected automatically.
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
                       </span>
-                      {asset.isScam && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="text-[10px] px-2 py-0.5 rounded bg-red-600/10 text-red-700 dark:text-red-300 border border-red-600/20 flex-shrink-0">
-                              SCAM
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            Suspicious/low-value token detected automatically.
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
-                    </span>
-                    <span className="text-[10px] opacity-60 truncate">
-                      {asset.name}
-                    </span>
+                      <span className="text-[10px] opacity-60 truncate">
+                        {asset.name}
+                      </span>
+                    </div>
                   </div>
                   <div className="text-right text-xs opacity-80 ml-2 flex-shrink-0">
                     {asset.amount && (
                       <div className="truncate">{asset.amount}</div>
                     )}
-                    {typeof (asset as { usdValue?: number }).usdValue ===
-                      "number" && (
+                    {typeof asset.usdValue === "number" && (
                       <div className="truncate">
-                        ${(asset as { usdValue?: number }).usdValue!.toFixed(4)}
+                        {asset.usdValue!.toFixed(4)}
                       </div>
                     )}
                   </div>

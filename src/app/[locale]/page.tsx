@@ -15,14 +15,14 @@ export default function HomePage() {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="min-h-screen p-6 flex flex-col gap-6 max-w-5xl mx-auto">
+    <div className="min-h-screen p-6 flex flex-col gap-6 max-w-5xl mx-auto ">
       <Header />
 
       <main className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-medium">{t("assets")}</h2>
           <button
-            className="rounded-lg font-bold bg-gradient-to-r from-indigo-500 to-fuchsia-500 text-white px-4 py-2 text-lg font-semibold shadow hover:opacity-90"
+            className="rounded-lg cursor-pointer font-bold bg-gradient-to-r from-indigo-500 to-fuchsia-500 text-white px-4 py-2 text-lg shadow hover:opacity-90 hover:scale-110 transition-transform duration-200"
             onClick={() => setIsOpen(true)}
           >
             {t("cleanCta")}
