@@ -43,6 +43,12 @@ async function fetchDexPrice(address: string): Promise<number | null> {
 
 export async function GET(req: NextRequest) {
   const address = req.nextUrl.searchParams.get("address");
+  const withPricesParam = req.nextUrl.searchParams.get("prices");
+  const withPrices = withPricesParam === "1";
+  const metaLimitParam = req.nextUrl.searchParams.get("metaLimit");
+  const META_LIMIT = metaLimitParam ? Math.max(0, Number(metaLimitParam)) : 20;
+  const heavyParam = req.nextUrl.searchParams.get("heavy");
+  const HEAVY_ONCHAIN = heavyParam === "1"; // ончейн-фолбэк только по запросу
   if (!address) {
     return new Response(JSON.stringify({ error: "Missing address" }), {
       status: 400,
@@ -50,6 +56,27 @@ export async function GET(req: NextRequest) {
   }
 
   const results: AssetResponse[] = [];
+
+  // In-memory caches (no DB/KV). Persist for process lifetime.
+  type CacheEntry<T> = { v: T; exp: number };
+  type CacheBuckets = {
+    bal: Map<string, CacheEntry<TokenBalanceEntry[]>>;
+    meta: Map<
+      string,
+      CacheEntry<{ symbol: string; name: string; decimals: number }>
+    >;
+    price: Map<string, CacheEntry<number>>;
+  };
+  const g = globalThis as unknown as { __WL_CACHE__?: CacheBuckets };
+  if (!g.__WL_CACHE__) {
+    g.__WL_CACHE__ = {
+      bal: new Map(),
+      meta: new Map(),
+      price: new Map(),
+    };
+  }
+  const ROOT = g.__WL_CACHE__;
+  // buckets are initialized above
 
   function getAlchemyRpcHost(key: string): string | null {
     switch (key) {
@@ -74,6 +101,9 @@ export async function GET(req: NextRequest) {
     networkKey: string,
     owner: string
   ): Promise<TokenBalanceEntry[]> {
+    const cacheKey = `${networkKey}:${owner.toLowerCase()}`;
+    const cached = ROOT.bal.get(cacheKey);
+    if (cached && Date.now() < cached.exp) return cached.v;
     const host = getAlchemyRpcHost(networkKey);
     const apiKey =
       process.env.ALCHEMY_API_KEY ?? process.env.NEXT_PUBLIC_ALCHEMY_API_KEY;
@@ -117,6 +147,10 @@ export async function GET(req: NextRequest) {
       pageKey = data?.result?.pageKey as string | undefined;
       if (!pageKey) break;
     }
+    ROOT.bal.set(cacheKey, {
+      v: all,
+      exp: Date.now() + 60_000,
+    });
     return all;
   }
 
@@ -146,7 +180,10 @@ export async function GET(req: NextRequest) {
   async function fetchErc20MetaOnchain(
     networkKey: string,
     address: `0x${string}`
-  ): Promise<{ symbol?: string; name?: string; decimals?: number } | null> {
+  ): Promise<{ symbol: string; name: string; decimals: number } | null> {
+    const ck = `${networkKey}:on:${address.toLowerCase()}`;
+    const cached = ROOT.meta.get(ck);
+    if (cached && Date.now() < cached.exp) return cached.v;
     try {
       const url = getRpcUrl(networkKey);
       if (!url) return null;
@@ -196,11 +233,16 @@ export async function GET(req: NextRequest) {
           })
           .catch(() => undefined),
       ]);
-      return {
-        symbol: (symbol as string | undefined) ?? undefined,
-        name: (name as string | undefined) ?? undefined,
-        decimals: (decimals as number | undefined) ?? undefined,
-      };
+      const res = {
+        symbol: (symbol as string | undefined) ?? "",
+        name: (name as string | undefined) ?? "",
+        decimals: (decimals as number | undefined) ?? 18,
+      } as { symbol: string; name: string; decimals: number };
+      ROOT.meta.set(ck, {
+        v: res,
+        exp: Date.now() + 6 * 60_000,
+      });
+      return res;
     } catch {
       return null;
     }
@@ -267,35 +309,64 @@ export async function GET(req: NextRequest) {
                 const meta = await alchemy.core.getTokenMetadata(
                   b.contractAddress
                 );
-                metadataMap.set(b.contractAddress, {
+                const payload: {
+                  symbol: string;
+                  name: string;
+                  decimals: number;
+                } = {
                   symbol: meta.symbol ?? "",
                   name: meta.name ?? "",
                   decimals: meta.decimals ?? 18,
-                });
+                };
+                metadataMap.set(b.contractAddress, payload);
               } catch {}
-              // On-chain fallback if still missing
-              if (!metadataMap.get(b.contractAddress)) {
+              // On-chain fallback if still missing (только в heavy-режиме)
+              if (HEAVY_ONCHAIN && !metadataMap.get(b.contractAddress)) {
                 const onchain = await fetchErc20MetaOnchain(
                   net.key,
                   b.contractAddress as `0x${string}`
                 );
                 if (onchain) {
-                  metadataMap.set(b.contractAddress, {
+                  const payload = {
                     symbol: onchain.symbol ?? "",
                     name: onchain.name ?? "",
                     decimals: onchain.decimals ?? 18,
-                  });
+                  } as { symbol: string; name: string; decimals: number };
+                  metadataMap.set(b.contractAddress, payload);
                 }
               }
             })
           );
         }
 
+        const sorted = nonZero.slice().sort((a, b) => {
+          try {
+            return Number(BigInt(b.tokenBalance) - BigInt(a.tokenBalance));
+          } catch {
+            return 0;
+          }
+        });
+        const toProcess = sorted.slice(0, META_LIMIT);
+
         await Promise.all(
-          nonZero.map(async (b) => {
-            const meta =
+          toProcess.map(async (b) => {
+            let meta =
               metadataMap.get(b.contractAddress) ??
               ({ symbol: "", name: "", decimals: 18 } as const);
+            // лёгкий on-chain фолбэк для TOP токенов даже без prices/heavy
+            if (!meta.symbol && !meta.name) {
+              const oc = await fetchErc20MetaOnchain(
+                net.key,
+                b.contractAddress as `0x${string}`
+              );
+              if (oc) {
+                meta = {
+                  symbol: oc.symbol ?? "",
+                  name: oc.name ?? "",
+                  decimals: oc.decimals ?? 18,
+                } as { symbol: string; name: string; decimals: number };
+              }
+            }
             const decimals = meta.decimals ?? 18;
             let raw: bigint;
             try {
@@ -306,15 +377,35 @@ export async function GET(req: NextRequest) {
             const humanStr = formatUnitsBigInt(raw, decimals);
             const humanNum = Number(humanStr);
             let price: number | null = null;
-            try {
-              price = await fetchDexPrice(b.contractAddress);
-            } catch {}
+            if (withPrices) {
+              const pk = b.contractAddress.toLowerCase();
+              const cachedPrice = (
+                ROOT.price as Map<string, CacheEntry<number>>
+              ).get(pk);
+              if (cachedPrice && Date.now() < cachedPrice.exp) {
+                price = cachedPrice.v;
+              } else {
+                try {
+                  price = await fetchDexPrice(b.contractAddress);
+                  if (typeof price === "number")
+                    (ROOT.price as Map<string, CacheEntry<number>>).set(pk, {
+                      v: price,
+                      exp: Date.now() + 5 * 60_000,
+                    });
+                } catch {}
+              }
+            }
             const usdValue =
-              price && Number.isFinite(humanNum) ? humanNum * price : null;
+              typeof price === "number" && Number.isFinite(humanNum)
+                ? humanNum * price
+                : null;
             const symbol = (meta.symbol ?? "").toUpperCase();
             const name = meta.name || symbol || b.contractAddress;
             const isEthNative = symbol === "ETH";
-            const isScam = !isEthNative && (usdValue ?? 0) < 0.1;
+            const isScam =
+              typeof usdValue === "number"
+                ? !isEthNative && usdValue < 0.1
+                : !isEthNative && (!symbol || humanNum < 0.000001);
             results.push({
               id: `${b.contractAddress}-${net.chainId}`,
               chainId: net.chainId,
@@ -325,7 +416,7 @@ export async function GET(req: NextRequest) {
               decimals,
               balance: humanStr,
               raw: raw.toString(),
-              usdPrice: price ?? null,
+              usdPrice: typeof price === "number" ? price : null,
               usdValue,
               isScam,
             });

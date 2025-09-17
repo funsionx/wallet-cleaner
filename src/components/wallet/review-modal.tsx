@@ -145,7 +145,7 @@ export function ReviewModal({
           <button
             disabled={!canSend}
             onClick={submit}
-            className="rounded-md px-3 py-2 text-sm text-white disabled:opacity-50 bg-gradient-to-r from-indigo-500 to-fuchsia-500"
+            className="rounded-md px-3 py-2 font-bold text-sm text-white disabled:opacity-50 bg-gradient-to-r from-indigo-500 to-fuchsia-500"
           >
             {loading ? t("processing") : t("confirm")}
           </button>

@@ -7,6 +7,7 @@ import {
   TooltipContent,
 } from "@/components/ui/tooltip";
 import { useAssets } from "@/hooks/useAssets";
+import { optimism } from "viem/chains";
 
 export type MockAsset = {
   id: string;
@@ -71,7 +72,7 @@ export function AssetList({
   };
 
   return (
-    <div className="rounded-xl border border-black/10 dark:border-white/10 p-3">
+    <div className="rounded-xl flex flex-col border border-black/10 dark:border-white/10 p-3">
       <div className="flex items-center gap-2 mb-3">
         <input
           value={query}
@@ -101,7 +102,7 @@ export function AssetList({
           Select one
         </button>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="space-y-2 columns-1 sm:columns-2 xl:columns-3">
         {isLoading && (
           <div className="text-sm text-black/60 dark:text-white/60 p-3">
             Loading assets...
@@ -118,9 +119,9 @@ export function AssetList({
             <div
               key={asset.id}
               onClick={() => toggle(asset.id)}
-              className={`rounded-xl p-[1px] cursor-pointer ${
+              className={`rounded-xl transition-all duration-300 hover:border-indigo-500 p-[1px] cursor-pointer break-inside-avoid ${
                 isSelected
-                  ? "border-gradient-to-r border-2 from-indigo-500 to-fuchsia-500"
+                  ? "border border-indigo-500"
                   : "bg-transparent border border-black/10 dark:border-white/10"
               }`}
             >
@@ -132,13 +133,15 @@ export function AssetList({
                 }`}
               >
                 <div className="flex items-start justify-between">
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium flex items-center gap-2">
-                      {asset.symbol ? `${asset.symbol}` : asset.name}
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <span className="text-sm font-medium flex items-center gap-2 flex-wrap">
+                      <span className="truncate">
+                        {asset.symbol ? `${asset.symbol}` : asset.name}
+                      </span>
                       {asset.isScam && (
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <span className="text-[10px] px-2 py-0.5 rounded bg-red-600/10 text-red-700 dark:text-red-300 border border-red-600/20">
+                            <span className="text-[10px] px-2 py-0.5 rounded bg-red-600/10 text-red-700 dark:text-red-300 border border-red-600/20 flex-shrink-0">
                               SCAM
                             </span>
                           </TooltipTrigger>
@@ -148,13 +151,17 @@ export function AssetList({
                         </Tooltip>
                       )}
                     </span>
-                    <span className="text-[10px] opacity-60">{asset.name}</span>
+                    <span className="text-[10px] opacity-60 truncate">
+                      {asset.name}
+                    </span>
                   </div>
-                  <div className="text-right text-xs opacity-80">
-                    {asset.amount && <div>{asset.amount}</div>}
+                  <div className="text-right text-xs opacity-80 ml-2 flex-shrink-0">
+                    {asset.amount && (
+                      <div className="truncate">{asset.amount}</div>
+                    )}
                     {typeof (asset as { usdValue?: number }).usdValue ===
                       "number" && (
-                      <div>
+                      <div className="truncate">
                         ${(asset as { usdValue?: number }).usdValue!.toFixed(4)}
                       </div>
                     )}

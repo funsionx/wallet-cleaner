@@ -22,7 +22,7 @@ export default function HomePage() {
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-medium">{t("assets")}</h2>
           <button
-            className="rounded-lg bg-gradient-to-r from-indigo-500 to-fuchsia-500 text-white px-4 py-2 text-sm font-semibold shadow hover:opacity-90"
+            className="rounded-lg font-bold bg-gradient-to-r from-indigo-500 to-fuchsia-500 text-white px-4 py-2 text-lg font-semibold shadow hover:opacity-90"
             onClick={() => setIsOpen(true)}
           >
             {t("cleanCta")}

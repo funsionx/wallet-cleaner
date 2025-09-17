@@ -1,7 +1,7 @@
 "use client";
 
-import { erc20Abi, erc721Abi } from "@/lib/abi";
-import { NftAsset, TokenAsset } from "@/lib/assets";
+import { erc20Abi, erc721Abi } from "@/shared/lib/abi";
+import { NftAsset, TokenAsset } from "@/shared/lib/assets";
 import { useAccount, useWalletClient, useChains, useSwitchChain } from "wagmi";
 import { encodeFunctionData, parseEther } from "viem";
 
