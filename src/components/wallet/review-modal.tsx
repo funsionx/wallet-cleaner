@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useAssets } from "@/hooks/useAssets";
-import { useClean } from "@/hooks/useClean";
+import { useAssets } from "@/entity/asset/api/useAssets";
+import { useClean } from "@/shared/hooks/useClean";
 import { useTranslations } from "next-intl";
 import { CheckCircle2, Loader2, XCircle } from "lucide-react";
 

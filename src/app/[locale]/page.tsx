@@ -1,11 +1,11 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Header } from "./(components)/header";
+import { Header } from "@/widgets/header/ui/header";
 import { useState } from "react";
-import { AssetList } from "@/components/wallet/asset-list";
+import { AssetList } from "@/entity/asset/ui/asset-list";
 import { ReviewModal } from "@/components/wallet/review-modal";
-import { Footer } from "./(components)/footer";
+import { Footer } from "@/widgets/footer";
 import { cleanWallet } from "./actions/clean";
 
 export default function HomePage() {

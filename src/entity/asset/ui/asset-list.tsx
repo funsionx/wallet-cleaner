@@ -1,13 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import {
-  Tooltip,
-  TooltipTrigger,
-  TooltipContent,
-} from "@/components/ui/tooltip";
-import { useAssets } from "@/hooks/useAssets";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/shared/ui/tooltip";
+import { useAssets } from "@/entity/asset/api/useAssets";
 import Image from "next/image";
+import { useChainId } from "wagmi";
 
 export type MockAsset = {
   id: string;
@@ -81,7 +78,7 @@ export function AssetList({
         : [...selected, id]
     );
   };
-  console.log(assets);
+
   return (
     <div className="rounded-xl border border-black/10 dark:border-white/10 p-3">
       <div className="flex items-center gap-2 mb-3">
@@ -98,19 +95,6 @@ export function AssetList({
           className="rounded-md border px-3 py-2 text-xs"
         >
           Select SCAM
-        </button>
-        <button
-          onClick={() =>
-            onChangeSelected(
-              assets
-                .filter((a) => !a.isScam)
-                .slice(0, 1)
-                .map((a) => a.id)
-            )
-          }
-          className="rounded-md border px-3 py-2 text-xs"
-        >
-          Select one
         </button>
       </div>
       <div className="space-y-2 columns-1 sm:columns-2 xl:columns-3">
