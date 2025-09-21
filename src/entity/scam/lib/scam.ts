@@ -28,7 +28,7 @@ export function isScamToken(ctx: ScamContext): boolean {
     return true;
 
   // 4) Подозрительные символы/названия
-  const suspectPatterns = [/SCAM/i, /FAKE/i, /AIRDROP/i, /TEST/i];
+  const suspectPatterns = [/SCAM/i, /FAKE/i, /AIRDROP/i, /TEST/i, /ELIGIBLE/i];
   if (suspectPatterns.some((re) => re.test(symbol) || re.test(name)))
     return true;
 

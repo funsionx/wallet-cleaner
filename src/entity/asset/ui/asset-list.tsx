@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/shared/ui/tooltip";
 import { useAssets } from "@/entity/asset/api/useAssets";
 import Image from "next/image";
-import { useChainId } from "wagmi";
 
 export type MockAsset = {
   id: string;
@@ -27,6 +26,10 @@ export function AssetList({
   onChangeSelected: (next: string[]) => void;
 }) {
   const [query, setQuery] = useState("");
+  const [networkFilter, setNetworkFilter] = useState<
+    "all" | 1 | 8453 | 42161 | 10 | 137
+  >("all");
+  const [mode, setMode] = useState<"flat" | "grouped">("grouped");
   const { assets, isLoading } = useAssets();
 
   // Автовыбор подозрительных активов (SCAM)
@@ -45,15 +48,19 @@ export function AssetList({
     usdValue?: number | null;
     isScam?: boolean;
     logo?: string | null;
+    chainId?: number;
   };
 
-  const filtered: CardAsset[] = useMemo(() => {
+  const prepared = useMemo<CardAsset[]>(() => {
     const q = query.trim().toLowerCase();
     const list: CardAsset[] =
       assets.length === 0
         ? (MOCK_ASSETS as CardAsset[])
         : assets
             .slice()
+            .filter((a) =>
+              networkFilter === "all" ? true : a.chainId === networkFilter
+            )
             .sort((a, b) => Number(b.isScam) - Number(a.isScam))
             .map((a) => ({
               id: a.id,
@@ -64,12 +71,13 @@ export function AssetList({
               usdValue: a.usdValue,
               isScam: a.isScam,
               logo: (a as unknown as { logo?: string | null }).logo ?? null,
+              chainId: a.chainId,
             }));
     if (!q) return list;
     return list.filter((a) =>
       `${a.name} ${a.symbol ?? ""}`.toLowerCase().includes(q)
     );
-  }, [query, assets]);
+  }, [query, assets, networkFilter]);
 
   const toggle = (id: string) => {
     onChangeSelected(
@@ -79,36 +87,13 @@ export function AssetList({
     );
   };
 
-  return (
-    <div className="rounded-xl border border-black/10 dark:border-white/10 p-3">
-      <div className="flex items-center gap-2 mb-3">
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search assets..."
-          className="w-full rounded-md border px-3 py-2 text-sm bg-transparent"
-        />
-        <button
-          onClick={() =>
-            onChangeSelected(assets.filter((a) => a.isScam).map((a) => a.id))
-          }
-          className="rounded-md border px-3 py-2 text-xs"
-        >
-          Select SCAM
-        </button>
+  const Section = ({ title, items }: { title: string; items: CardAsset[] }) => (
+    <div>
+      <div className="text-xs uppercase tracking-wide opacity-60 px-1 mb-2">
+        {title}
       </div>
       <div className="space-y-2 columns-1 sm:columns-2 xl:columns-3">
-        {isLoading && (
-          <div className="text-sm text-black/60 dark:text-white/60 p-3">
-            Loading assets...
-          </div>
-        )}
-        {filtered.length === 0 && (
-          <div className="text-sm text-black/60 dark:text-white/60 p-3">
-            {isLoading ? "" : "Empty (connect wallet to load assets)"}
-          </div>
-        )}
-        {filtered.map((asset) => {
+        {items.map((asset) => {
           const isSelected = selected.includes(asset.id);
           return (
             <div
@@ -169,7 +154,7 @@ export function AssetList({
                     )}
                     {typeof asset.usdValue === "number" && (
                       <div className="truncate">
-                        {asset.usdValue!.toFixed(4)}
+                        ${asset.usdValue!.toFixed(4)}
                       </div>
                     )}
                   </div>
@@ -179,6 +164,82 @@ export function AssetList({
           );
         })}
       </div>
+    </div>
+  );
+
+  const scamItems = prepared.filter((i) => i.isScam);
+  const normalItems = prepared.filter((i) => !i.isScam);
+
+  return (
+    <div className="rounded-xl border border-black/10 dark:border-white/10 p-3">
+      <div className="flex items-center gap-2 mb-3">
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search assets..."
+          className="w-full rounded-md border px-3 py-2 text-sm bg-transparent"
+        />
+        <select
+          className="rounded-md border px-2 py-2 text-xs bg-transparent"
+          value={networkFilter as unknown as string}
+          onChange={(e) =>
+            setNetworkFilter(
+              (e.target.value === "all"
+                ? "all"
+                : (Number(e.target.value) as 1 | 8453 | 42161 | 10 | 137)) as
+                | "all"
+                | 1
+                | 8453
+                | 42161
+                | 10
+                | 137
+            )
+          }
+        >
+          <option value="all">All networks</option>
+          <option value={1}>Ethereum</option>
+          <option value={8453}>Base</option>
+          <option value={42161}>Arbitrum</option>
+          <option value={10}>Optimism</option>
+          <option value={137}>Polygon</option>
+        </select>
+        <select
+          className="rounded-md border px-2 py-2 text-xs bg-transparent"
+          value={mode}
+          onChange={(e) => setMode(e.target.value as "flat" | "grouped")}
+        >
+          <option value="grouped">SCAM first</option>
+          <option value="flat">Flat</option>
+        </select>
+        <button
+          onClick={() =>
+            onChangeSelected(assets.filter((a) => a.isScam).map((a) => a.id))
+          }
+          className="rounded-md border px-3 py-2 text-xs"
+        >
+          Select SCAM
+        </button>
+      </div>
+
+      {isLoading && (
+        <div className="text-sm text-black/60 dark:text-white/60 p-3">
+          Loading assets...
+        </div>
+      )}
+      {!isLoading && prepared.length === 0 && (
+        <div className="text-sm text-black/60 dark:text-white/60 p-3">
+          Empty (connect wallet to load assets)
+        </div>
+      )}
+
+      {mode === "grouped" ? (
+        <div className="space-y-4">
+          <Section title="SCAM" items={scamItems} />
+          <Section title="Tokens" items={normalItems} />
+        </div>
+      ) : (
+        <Section title="All" items={prepared} />
+      )}
     </div>
   );
 }

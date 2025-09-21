@@ -3,10 +3,12 @@ import { NextRequest } from "next/server";
 
 export async function GET(req: NextRequest) {
   const address = req.nextUrl.searchParams.get("address");
-  const withPrices = req.nextUrl.searchParams.get("prices") === "1";
+  const pricesParam = req.nextUrl.searchParams.get("prices");
+  const withPrices = pricesParam === null ? true : pricesParam === "1";
   const metaLimitParam = req.nextUrl.searchParams.get("metaLimit");
   const heavyOnchain = req.nextUrl.searchParams.get("heavy") === "1";
-  const metaLimit = metaLimitParam ? Math.max(0, Number(metaLimitParam)) : 20;
+  // 0 = без ограничения
+  const metaLimit = metaLimitParam ? Math.max(0, Number(metaLimitParam)) : 0;
 
   if (!address) {
     return new Response(JSON.stringify({ error: "Missing address" }), {
