@@ -24,6 +24,7 @@ export type AssetDTO = {
   usdPrice: number | null;
   usdValue: number | null;
   isScam: boolean;
+  scamReason?: string | null;
 };
 
 export type GetAssetsParams = {
@@ -31,4 +32,5 @@ export type GetAssetsParams = {
   withPrices: boolean;
   metaLimit: number;
   heavyOnchain: boolean;
+  aiDetect?: boolean;
 };

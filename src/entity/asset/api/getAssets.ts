@@ -3,9 +3,10 @@ import type { GetAssetsParams, AssetDTO } from "../model/types";
 import { SUPPORTED_NETWORKS } from "@/server/alchemy";
 import { ChainKey } from "@/shared/model/chain";
 import { fetchPortfolioTokens } from "./fetchPortfolioTokens";
+import { aiDetectScam } from "./openrouterDetectScam";
 
 export async function getAssets(params: GetAssetsParams): Promise<AssetDTO[]> {
-  const { address, withPrices, metaLimit } = params;
+  const { address, withPrices, metaLimit, aiDetect } = params;
 
   const networks = SUPPORTED_NETWORKS.map((n) => n.key as ChainKey);
   const tokens = await fetchPortfolioTokens({
@@ -78,6 +79,42 @@ export async function getAssets(params: GetAssetsParams): Promise<AssetDTO[]> {
       usdValue,
       isScam,
     });
+  }
+
+  if (aiDetect && out.length > 0) {
+    const aiInput = out.map((a) => ({
+      address: a.address,
+      chainId: a.chainId,
+      symbol: a.symbol,
+      name: a.name,
+      usdPrice: a.usdPrice,
+      usdValue: a.usdValue,
+      balance: a.balance,
+    }));
+    // Язык зададим через ENV-фоллбек или оставим en. Клиент дополнительно может передать ?lang=ru
+    let lang: "en" | "ru" = "en";
+    try {
+      const langEnv = (process.env.DEFAULT_LOCALE || "en").toLowerCase();
+      if (langEnv.startsWith("ru")) lang = "ru";
+    } catch {}
+    const resp = await aiDetectScam(aiInput, lang);
+    if (resp) {
+      // Нормализуем ключи из ответа в lowerCase для универсального сопоставления
+      const normalized = Object.create(null) as Record<
+        string,
+        { isScam: boolean; reason?: string }
+      >;
+      for (const [key, val] of Object.entries(resp)) {
+        normalized[key.toLowerCase()] = val;
+      }
+      for (const item of out) {
+        const r = normalized[item.address.toLowerCase()];
+        if (r && typeof r.isScam === "boolean") {
+          item.isScam = r.isScam;
+          if (r.reason) item.scamReason = r.reason;
+        }
+      }
+    }
   }
 
   return out;

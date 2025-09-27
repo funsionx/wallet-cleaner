@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/shared/ui/tooltip";
 import { useAssets } from "@/entity/asset/api/useAssets";
 import Image from "next/image";
+import { useAccount } from "wagmi";
+import { useQueryClient } from "@tanstack/react-query";
 
 export type MockAsset = {
   id: string;
@@ -25,21 +28,27 @@ export function AssetList({
   selected: string[];
   onChangeSelected: (next: string[]) => void;
 }) {
+  const t = useTranslations("app");
+  const { address } = useAccount();
+  const queryClient = useQueryClient();
+  const [aiLoading, setAiLoading] = useState(false);
   const [query, setQuery] = useState("");
   const [networkFilter, setNetworkFilter] = useState<
     "all" | 1 | 8453 | 42161 | 10 | 137
   >("all");
   const [mode, setMode] = useState<"flat" | "grouped">("grouped");
-  const { assets, isLoading } = useAssets();
+  const { assets, isLoading, isFetching, refetch } = useAssets();
 
-  // Автовыбор подозрительных активов (SCAM)
+  // Автовыбор подозрительных активов (SCAM) после AI-анализа
   useEffect(() => {
     const scam = assets.filter((a) => a.isScam).map((a) => a.id);
-    if (scam.length > 0) {
-      onChangeSelected(Array.from(new Set([...selected, ...scam])));
+    if (scam.length === 0) return;
+    const union = Array.from(new Set([...selected, ...scam]));
+    if (union.length !== selected.length) {
+      onChangeSelected(union);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [assets.length]);
+  }, [assets, selected.length]);
 
   type CardAsset = Required<
     Pick<MockAsset, "id" | "type" | "symbol" | "name">
@@ -49,6 +58,7 @@ export function AssetList({
     isScam?: boolean;
     logo?: string | null;
     chainId?: number;
+    scamReason?: string | null;
   };
 
   const prepared = useMemo<CardAsset[]>(() => {
@@ -72,6 +82,9 @@ export function AssetList({
               isScam: a.isScam,
               logo: (a as unknown as { logo?: string | null }).logo ?? null,
               chainId: a.chainId,
+              scamReason:
+                (a as unknown as { scamReason?: string | null }).scamReason ??
+                null,
             }));
     if (!q) return list;
     return list.filter((a) =>
@@ -89,7 +102,7 @@ export function AssetList({
 
   const Section = ({ title, items }: { title: string; items: CardAsset[] }) => (
     <div>
-      <div className="text-xs uppercase tracking-wide opacity-60 px-1 mb-2">
+      <div className="text-xs text-white font-bold uppercase tracking-wide opacity-60 px-1 mb-2">
         {title}
       </div>
       <div className="space-y-2 columns-1 sm:columns-2 xl:columns-3">
@@ -97,11 +110,11 @@ export function AssetList({
           const isSelected = selected.includes(asset.id);
           return (
             <div
-              key={asset.id}
+              key={asset.id + asset.chainId + asset.amount}
               onClick={() => toggle(asset.id)}
-              className={`rounded-xl transition-all duration-300 hover:border-indigo-500 p-[1px] cursor-pointer break-inside-avoid ${
+              className={`rounded-xl bg-white transition-all duration-300 hover:border-3 hover:border-indigo-500 p-[1px] cursor-pointer break-inside-avoid ${
                 isSelected
-                  ? "border border-indigo-500"
+                  ? "border-3 border-indigo-500"
                   : "bg-transparent border border-black/10 dark:border-white/10"
               }`}
             >
@@ -138,7 +151,7 @@ export function AssetList({
                               </span>
                             </TooltipTrigger>
                             <TooltipContent>
-                              Suspicious/low-value token detected automatically.
+                              {asset.scamReason || t("aiDefaultReason")}
                             </TooltipContent>
                           </Tooltip>
                         )}
@@ -171,16 +184,16 @@ export function AssetList({
   const normalItems = prepared.filter((i) => !i.isScam);
 
   return (
-    <div className="rounded-xl border border-black/10 dark:border-white/10 p-3">
+    <div className="rounded-xl border bg-gray-700 border-white/10 dark:border-white/10 p-3">
       <div className="flex items-center gap-2 mb-3">
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search assets..."
-          className="w-full rounded-md border px-3 py-2 text-sm bg-transparent"
+          placeholder={t("search")}
+          className="w-full rounded-md border text-white px-3 py-2 text-sm bg-transparent"
         />
         <select
-          className="rounded-md border px-2 py-2 text-xs bg-transparent"
+          className="rounded-md border px-2 py-2 text-xs bg-transparent text-white"
           value={networkFilter as unknown as string}
           onChange={(e) =>
             setNetworkFilter(
@@ -196,7 +209,7 @@ export function AssetList({
             )
           }
         >
-          <option value="all">All networks</option>
+          <option value="all">{t("allNetworks")}</option>
           <option value={1}>Ethereum</option>
           <option value={8453}>Base</option>
           <option value={42161}>Arbitrum</option>
@@ -204,41 +217,73 @@ export function AssetList({
           <option value={137}>Polygon</option>
         </select>
         <select
-          className="rounded-md border px-2 py-2 text-xs bg-transparent"
+          className="rounded-md border px-2 py-2 text-xs bg-transparent text-white"
           value={mode}
           onChange={(e) => setMode(e.target.value as "flat" | "grouped")}
         >
-          <option value="grouped">SCAM first</option>
-          <option value="flat">Flat</option>
+          <option value="grouped">{t("grouped")}</option>
+          <option value="flat">{t("flat")}</option>
         </select>
         <button
-          onClick={() =>
-            onChangeSelected(assets.filter((a) => a.isScam).map((a) => a.id))
-          }
-          className="rounded-md border px-3 py-2 text-xs"
+          onClick={async () => {
+            if (!address) return;
+            try {
+              setAiLoading(true);
+              const res = await fetch(
+                `/api/assets?address=${address}&prices=1&ai=1&lang=${
+                  typeof window !== "undefined" &&
+                  window.location.pathname.startsWith("/ru")
+                    ? "ru"
+                    : "en"
+                }`,
+                { cache: "no-store" }
+              );
+              if (res.ok) {
+                // Обновим кэш основной выборки
+                await queryClient.invalidateQueries({
+                  queryKey: ["assets", address],
+                });
+                await refetch();
+              }
+            } finally {
+              setAiLoading(false);
+            }
+          }}
+          disabled={isFetching || isLoading || aiLoading}
+          className="rounded-md w-[200px] border px-3 py-2 text-xs text-white flex items-center gap-1 disabled:opacity-50"
+          title={t("aiTooltip")}
         >
-          Select SCAM
+          <span>{aiLoading ? t("aiAnalyzing") : t("aiSelectScam")}</span>
+          <span className="text-[10px] px-1 rounded border border-white/30">
+            AI
+          </span>
         </button>
       </div>
 
-      {isLoading && (
-        <div className="text-sm text-black/60 dark:text-white/60 p-3">
-          Loading assets...
+      {(isLoading || isFetching || aiLoading) && (
+        <div className="text-sm dark:text-white/60 p-3 text-white">
+          {t("processing")}
         </div>
       )}
       {!isLoading && prepared.length === 0 && (
         <div className="text-sm text-black/60 dark:text-white/60 p-3">
-          Empty (connect wallet to load assets)
+          {t("empty")}
         </div>
       )}
 
       {mode === "grouped" ? (
-        <div className="space-y-4">
+        <div
+          className={`space-y-4 ${
+            aiLoading ? "blur-sm pointer-events-none" : ""
+          }`}
+        >
           <Section title="SCAM" items={scamItems} />
-          <Section title="Tokens" items={normalItems} />
+          <Section title={t("tokens")} items={normalItems} />
         </div>
       ) : (
-        <Section title="All" items={prepared} />
+        <div className={aiLoading ? "blur-sm pointer-events-none" : ""}>
+          <Section title={t("assets")} items={prepared} />
+        </div>
       )}
     </div>
   );

@@ -20,7 +20,7 @@ export default function HomePage() {
 
       <main className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-medium">{t("assets")}</h2>
+          <h2 className="text-lg font-medium text-white">{t("assets")}</h2>
           <button
             className="rounded-lg cursor-pointer font-bold bg-gradient-to-r from-indigo-500 to-fuchsia-500 text-white px-4 py-2 text-lg shadow hover:opacity-90 hover:scale-110 transition-transform duration-200"
             onClick={() => setIsOpen(true)}

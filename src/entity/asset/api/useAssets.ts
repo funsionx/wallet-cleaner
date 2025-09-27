@@ -16,6 +16,7 @@ export type UiAsset = {
   usdPrice: number | null;
   usdValue: number | null;
   isScam: boolean;
+  scamReason?: string | null;
 };
 
 export function useAssets() {
@@ -24,7 +25,8 @@ export function useAssets() {
     queryKey: ["assets", address],
     queryFn: async (): Promise<UiAsset[]> => {
       if (!address) return [];
-      const url = `/api/assets?address=${address}`;
+      // Базовая загрузка без AI — быстрый список активов
+      const url = `/api/assets?address=${address}&prices=1`;
       const res = await fetch(url, {
         cache: "force-cache",
         next: { revalidate: 60 },
@@ -39,6 +41,7 @@ export function useAssets() {
   return {
     assets: query.data ?? [],
     isLoading: query.isLoading,
+    isFetching: query.isFetching,
     refetch: query.refetch,
   };
 }

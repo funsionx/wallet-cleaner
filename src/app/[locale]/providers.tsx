@@ -2,12 +2,12 @@
 
 import { ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { WagmiProvider, http, createConfig, Config } from "wagmi";
+import { WagmiProvider, http, Config } from "wagmi";
 import { mainnet, polygon, optimism, base, arbitrum } from "wagmi/chains";
 import {
-  getDefaultConfig,
   RainbowKitProvider,
   darkTheme,
+  getDefaultConfig,
 } from "@rainbow-me/rainbowkit";
 import "@rainbow-me/rainbowkit/styles.css";
 import { StateSyncLoading } from "@/components/state-sync-loading";
@@ -20,36 +20,36 @@ const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? "demo";
 const alchemyKey =
   process.env.ALCHEMY_API_KEY || process.env.NEXT_PUBLIC_ALCHEMY_API_KEY;
 
-const rkBase = getDefaultConfig({
+const alchemyTransports = alchemyKey
+  ? {
+      [mainnet.id]: http(`https://eth-mainnet.g.alchemy.com/v2/${alchemyKey}`),
+      [base.id]: http(`https://base-mainnet.g.alchemy.com/v2/${alchemyKey}`),
+      [arbitrum.id]: http(`https://arb-mainnet.g.alchemy.com/v2/${alchemyKey}`),
+      [polygon.id]: http(
+        `https://polygon-mainnet.g.alchemy.com/v2/${alchemyKey}`
+      ),
+      [optimism.id]: http(`https://opt-mainnet.g.alchemy.com/v2/${alchemyKey}`),
+    }
+  : undefined;
+
+const publicTransports = {
+  [mainnet.id]: http("https://ethereum-rpc.publicnode.com"),
+  [base.id]: http("https://base-rpc.publicnode.com"),
+  [arbitrum.id]: http("https://arbitrum-one.publicnode.com"),
+  [polygon.id]: http("https://polygon-bor-rpc.publicnode.com"),
+  [optimism.id]: http("https://optimism-rpc.publicnode.com"),
+} as const;
+
+const wagmiConfig: Config = getDefaultConfig({
   appName: "Wallet Cleaner",
   projectId,
-  chains: chains,
+  chains,
   ssr: false,
+  transports: (alchemyTransports ?? publicTransports) as Record<
+    number,
+    ReturnType<typeof http>
+  >,
 });
-
-const wagmiConfig: Config = alchemyKey
-  ? createConfig({
-      chains,
-      transports: {
-        [mainnet.id]: http(
-          `https://eth-mainnet.g.alchemy.com/v2/${alchemyKey}`
-        ),
-        [base.id]: http(`https://base-mainnet.g.alchemy.com/v2/${alchemyKey}`),
-        [arbitrum.id]: http(
-          `https://arb-mainnet.g.alchemy.com/v2/${alchemyKey}`
-        ),
-        [polygon.id]: http(
-          `https://polygon-mainnet.g.alchemy.com/v2/${alchemyKey}`
-        ),
-        [optimism.id]: http(
-          `https://opt-mainnet.g.alchemy.com/v2/${alchemyKey}`
-        ),
-      },
-      ssr: false,
-      pollingInterval: 20_000,
-      batch: { multicall: true },
-    })
-  : rkBase;
 
 export { wagmiConfig };
 

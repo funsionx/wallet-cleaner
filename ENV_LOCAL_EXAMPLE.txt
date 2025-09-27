@@ -3,4 +3,7 @@ NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=demo
 ALCHEMY_API_KEY=
 NEXT_PUBLIC_ALCHEMY_API_KEY=
 
+OPENROUTER_API_KEY=
+# Optional: override default model (defaults to x-ai/grok-4-fast:free)
+OPENROUTER_MODEL=
 

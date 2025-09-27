@@ -15,7 +15,13 @@ export default function Landing() {
             href="/en"
             className="rounded-xl px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-indigo-500 to-fuchsia-500 hover:opacity-90"
           >
-            Open app
+            Open in English
+          </Link>
+          <Link
+            href="/ru"
+            className="rounded-xl px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-fuchsia-500 to-indigo-500 hover:opacity-90"
+          >
+            Открыть на русском
           </Link>
           <a
             href="#how"
@@ -75,12 +81,20 @@ export default function Landing() {
       </section>
 
       <section className="max-w-6xl mx-auto px-6 py-16 text-center">
-        <Link
-          href="/en"
-          className="inline-flex rounded-xl px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-indigo-500 to-fuchsia-500 hover:opacity-90"
-        >
-          Get started
-        </Link>
+        <div className="flex items-center justify-center gap-3">
+          <Link
+            href="/en"
+            className="inline-flex rounded-xl px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-indigo-500 to-fuchsia-500 hover:opacity-90"
+          >
+            Get started (EN)
+          </Link>
+          <Link
+            href="/ru"
+            className="inline-flex rounded-xl px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-fuchsia-500 to-indigo-500 hover:opacity-90"
+          >
+            Начать (RU)
+          </Link>
+        </div>
       </section>
     </main>
   );
