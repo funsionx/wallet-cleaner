@@ -5,6 +5,7 @@ export type ScamContext = {
   usdValue: number | null;
   balanceHuman: number;
   holders?: number | null;
+  logo?: string | null;
 };
 
 // Простой эвристический алгоритм определения скам-токенов.
@@ -17,8 +18,11 @@ export function isScamToken(ctx: ScamContext): boolean {
   const balance = Number.isFinite(ctx.balanceHuman) ? ctx.balanceHuman : 0;
   const holders = typeof ctx.holders === "number" ? ctx.holders : null;
 
+  if (ctx.logo) return false;
   // 1) Явные признаки: отсутствует символ и имя → высокий риск
   if (!symbol && !name) return true;
+
+  if (!Number(ctx.usdPrice) && Number(ctx.usdValue) < 0.01) return true;
 
   // 2) Очень маленькая капитализация для владельца: цена есть, а стоимость < $0.1
   if (price !== null && value !== null && value < 0.1) return true;

@@ -1,2 +1,2 @@
 export * from "../../entity/asset/ui/asset-list";
-export * from "./review-modal";
+export * from "../../widgets/review-modal/ui/review-modal";

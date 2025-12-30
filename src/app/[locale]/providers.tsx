@@ -12,7 +12,11 @@ import {
 import "@rainbow-me/rainbowkit/styles.css";
 import { StateSyncLoading } from "@/components/state-sync-loading";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { refetchOnWindowFocus: false, retry: 1 },
+  },
+});
 
 // Basic wagmi config. TODO: allow dynamic chain selection and RPCs from env
 const chains = [mainnet, base, arbitrum, polygon, optimism] as const;

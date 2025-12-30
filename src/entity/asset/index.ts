@@ -6,3 +6,4 @@ export * from "./lib/getRpcUrl";
 export * from "./lib/getOnchainTokenMeta";
 export * from "./lib/getRpcUrl";
 export * from "./lib/getOnchainTokenMeta";
+export * from "./model/use-excluded-assets";

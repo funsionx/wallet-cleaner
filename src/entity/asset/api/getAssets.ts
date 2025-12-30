@@ -38,7 +38,7 @@ export async function getAssets(params: GetAssetsParams): Promise<AssetDTO[]> {
       ? sorted.slice(0, metaLimit)
       : sorted;
 
-  const out: AssetDTO[] = [];
+  let out: AssetDTO[] = [];
   for (const t of slice) {
     const chainId = mapNetToChainId(t.network);
     const decimals = t.tokenMetadata?.decimals ?? 18;
@@ -62,6 +62,7 @@ export async function getAssets(params: GetAssetsParams): Promise<AssetDTO[]> {
         usdPrice: price,
         usdValue,
         balanceHuman: human,
+        logo: t.tokenMetadata?.logo ?? null,
       });
 
     out.push({
@@ -79,6 +80,27 @@ export async function getAssets(params: GetAssetsParams): Promise<AssetDTO[]> {
       usdValue,
       isScam,
     });
+  }
+
+  // Deduplicate items by id (address+chainId). Keep the entry with larger raw balance.
+  if (out.length > 1) {
+    const uniq = new Map<string, AssetDTO>();
+    for (const item of out) {
+      const prev = uniq.get(item.id);
+      if (!prev) {
+        uniq.set(item.id, item);
+        continue;
+      }
+      try {
+        const a = BigInt(prev.raw);
+        const b = BigInt(item.raw);
+        if (b > a) uniq.set(item.id, item);
+      } catch {
+        // fallback: override
+        uniq.set(item.id, item);
+      }
+    }
+    out = Array.from(uniq.values());
   }
 
   if (aiDetect && out.length > 0) {

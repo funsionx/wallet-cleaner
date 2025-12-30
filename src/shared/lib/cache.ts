@@ -5,6 +5,8 @@ export type Buckets = {
   bal: Map<string, CacheEntry<any>>;
   meta: Map<string, CacheEntry<any>>;
   price: Map<string, CacheEntry<any>>;
+  ai: Map<string, CacheEntry<any>>;
+  ctrl: Map<string, CacheEntry<any>>;
 };
 
 const g = globalThis as unknown as { __WL_CACHE__?: Buckets };
@@ -13,6 +15,8 @@ if (!g.__WL_CACHE__) {
     bal: new Map(),
     meta: new Map(),
     price: new Map(),
+    ai: new Map(),
+    ctrl: new Map(),
   };
 }
 export const CACHE = g.__WL_CACHE__ as Buckets;
